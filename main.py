@@ -109,8 +109,8 @@ class Viewer:
         self.master.lift()
 
     def clearCache(self):
-        for filename in os.listdir('./cache'):
-            file_path = os.path.join('./cache', filename)
+        for filename in os.listdir('./data/cache'):
+            file_path = os.path.join('./data/cache', filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     os.unlink(file_path)
@@ -127,45 +127,48 @@ class DatabaseView:
     def __init__(self, master):
         self.master = master
         self.manga = 0
-        self.path = "./cache"
+        self.path = "./data/cache"
         self.images = []
         self.cur_site = 0
-
-        self.frame = tk.Frame(self.master)
-        self.frame.pack()
 
         self.master.title("ComicTools")
         self.menuBar = tk.Menu(self.master)
 
         file = tk.Menu(self.menuBar, tearoff=0)
         self.menuBar.add_cascade(label='File', menu=file)
-        file.add_command(label='New File', command=None)
-        file.add_command(label='Open...', command=None)
-        file.add_command(label='Save', command=None)
+        file.add_command(label='Add New Folder', command=None)
+        file.add_command(label='List Current Folder(s)', command=None)
+        file.add_command(label='Change hash folder', command=None)
         file.add_separator()
-        file.add_command(label='Exit', command=self.master.destroy)
+        file.add_command(label='Exit', command=lambda: self.master.destroy())
 
-        # Adding Edit Menu and commands
+        # Adding Edit
         edit = tk.Menu(self.menuBar, tearoff=0)
-        self.menuBar.add_cascade(label='Edit', menu=edit)
-        edit.add_command(label='Cut', command=None)
-        edit.add_command(label='Copy', command=None)
-        edit.add_command(label='Paste', command=None)
-        edit.add_command(label='Select All', command=None)
+        self.menuBar.add_cascade(label='Tag', menu=edit)
+        edit.add_command(label='Add Tag', command=None)
+        edit.add_command(label='Remove Tag', command=None)
+        edit.add_command(label='File Tag', command=None)
+        edit.add_command(label='File Un-Tag', command=None)
         edit.add_separator()
         edit.add_command(label='Find...', command=None)
         edit.add_command(label='Find again', command=None)
 
-        # Adding Help Menu
-        help_ = tk.Menu(self.menuBar, tearoff=0)
-        self.menuBar.add_cascade(label='Help', menu=help_)
-        help_.add_command(label='Tk Help', command=None)
-        help_.add_command(label='Demo', command=None)
-        help_.add_separator()
-        help_.add_command(label='About Tk', command=None)
+        # Adding Tools Menu
+        tools = tk.Menu(self.menuBar, tearoff=0)
+        self.menuBar.add_cascade(label='Tools', menu=tools)
+        tools.add_command(label='Load hash/Tag', command=None)
+        tools.add_command(label='Demo', command=None)
+        tools.add_separator()
+        tools.add_command(label='About Tk', command=None)
 
-        self.load_button = tk.Button(self.frame, text="Load E-Book", command=self.loadBook)
-        self.load_button.pack(side=tk.TOP)
+        # Adding Help Menu
+        help = tk.Menu(self.menuBar, tearoff=0)
+        self.menuBar.add_cascade(label='Help', menu=help)
+        help.add_command(label='Tk Help', command=None)
+        help.add_command(label='Demo', command=None)
+        help.add_separator()
+        help.add_command(label='About Tk', command=None)
+
 
         self.master.config(menu=self.menuBar)
 
@@ -174,17 +177,23 @@ class DatabaseView:
 
     def loadBook(self):
         self.newWindow = tk.Toplevel(self.master)
-        self.newWindow.minsize(self.master.winfo_width(), self.master.winfo_height())
+        self.newWindow.minsize(width=800, height=1200)
         self.app = Viewer(self.newWindow)
 
 
 
 def main():
-    if not os.path.isdir('./cache'):
-        os.system("mkdir cache")
+    if not os.path.isdir('./data'):
+        os.system("mkdir data")
+
+    if not os.path.isdir('./data/hash'):
+        os.system(r"mkdir ./data/hash")
+
+    if not os.path.isdir('./data/cache'):
+        os.system(r"mkdir ./data/cache")
 
     root = tk.Tk()
-    root.minsize(width=800, height=1200)
+    root.minsize(width=1600, height=1200)
     app = DatabaseView(root)
     root.mainloop()
 
