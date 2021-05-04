@@ -2,14 +2,15 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import ImageTk, Image
 from zipfile import ZipFile
-import os, shutil
+import os, shutil, configparser, sqlite3
+from tkinter import messagebox
 
 class Viewer:
     def __init__(self, master, temp_manga=""):
         self.master = master
         self.frame = tk.Frame(self.master)
         self.manga = 0
-        self.path = "./cache"
+        self.path = "./data/cache"
         self.images = []
         self.cur_page = 0
         self.frame.panel = tk.Label(self.frame)
@@ -130,17 +131,25 @@ class DatabaseView:
         self.path = "./data/cache"
         self.images = []
         self.cur_site = 0
-
+        self.button_list = []
+        self.file_list = []
+        self.sql = sqlite3.connect('./data/sql/ComicTool.sqlite')
         self.master.title("ComicTools")
         self.menuBar = tk.Menu(self.master)
 
+        self.x = None
+        self.y = None
+
+        self.display()
+
+    def display(self):
         file = tk.Menu(self.menuBar, tearoff=0)
         self.menuBar.add_cascade(label='File', menu=file)
         file.add_command(label='Add New Folder', command=None)
         file.add_command(label='List Current Folder(s)', command=None)
         file.add_command(label='Change hash folder', command=None)
         file.add_separator()
-        file.add_command(label='Exit', command=lambda: self.master.destroy())
+        file.add_command(label='Save & Exit', command=lambda: self.on_closing())
 
         # Adding Edit
         edit = tk.Menu(self.menuBar, tearoff=0)
@@ -169,33 +178,152 @@ class DatabaseView:
         help.add_separator()
         help.add_command(label='About Tk', command=None)
 
-
         self.master.config(menu=self.menuBar)
+        self.master.update()
+        h, w = self.master.winfo_height(), self.master.winfo_width()
+
+        frame_top = tk.Frame(self.master, width=w, height=h*0.05, bg="#154e72")
+        frame_left = tk.Frame(self.master, width=w * 0.15, height=h*0.85, bg="#3399ff")
+        frame_right = tk.Frame(self.master, width=w * 0.85, height=h*0.85, bg="#9dc8e3")
+        frame_bottom = tk.Frame(self.master, width=w, height=h*0.1, bg="#154e72")
+
+        self.master.grid_rowconfigure(1, weight=1)
+        self.master.grid_columnconfigure(0, weight=1)
+
+        frame_top.pack(side='top', expand=True, fill='both')
+        frame_bottom.pack(side='bottom', expand=True, fill='both')
+        frame_left.pack(side='left', expand=True, fill='both')
+        frame_right.pack(side='right', expand=True, fill='both')
+
+        frame_top.grid_propagate(0)
+        frame_bottom.grid_propagate(0)
+        frame_left.grid_propagate(0)
+        frame_right.grid_propagate(0)
+
+        # Add closing icon
+        logo_img = Image.open(r'./source/close.png')
+        logo = ImageTk.PhotoImage(logo_img.resize((int(h * 0.05), int(h * 0.05))))
+
+        self.close = tk.Button(self.master, image=logo, command=lambda: self.on_closing())
+        self.close.image = logo
+        self.close.pack(in_=frame_top, side="right", fill="y")
+
+
+        # Add dragging icon
+        move_logo_img = Image.open(r'./source/move.png')
+        move_logo = ImageTk.PhotoImage(move_logo_img.resize((int(h*0.05), int(h*0.05))))
+
+        self.grip = tk.Label(self.master, image=move_logo)
+        self.grip.image = move_logo
+        self.grip.pack(in_=frame_top, side="right", fill="y")
+
+        self.grip.bind("<ButtonPress-1>", self.start_move)
+        self.grip.bind("<ButtonRelease-1>", self.stop_move)
+        self.grip.bind("<B1-Motion>", self.do_move)
+
+        for i in range(4):
+            for j in range(4):
+                but = tk.Button(self.master, text="test"+str(i)+','+str(j))
+                but.grid(in_=frame_right, column=i, row=j, sticky="NSEW")
+                self.button_list.append(but)
+
+        for x in range(4):
+            tk.Grid.columnconfigure(frame_right, x, weight=1)
+
+        for y in range(4):
+            tk.Grid.rowconfigure(frame_right, y, weight=1)
+
 
     def thumbnails(self):
         thumbnail_ratio = (64, 100)
+        for filename in os.listdir('./data/cache'):
+            file_path = os.path.join('./data/cache', filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print('Failed deletion')
 
-    def loadBook(self):
-        self.newWindow = tk.Toplevel(self.master)
-        self.newWindow.minsize(width=800, height=1200)
-        self.app = Viewer(self.newWindow)
+
+        if len(temp_path) == 0:
+            print('Invalid path: '+temp_path+' Skipped')
+
+        if os.path.isfile(temp_path):
+            book = ZipFile(temp_path, 'r')
+            book.extractall('./data/cache')
+            book.close()
+
+        def loadBook(self):
+            self.newWindow = tk.Toplevel(self.master)
+            self.newWindow.minsize(width=800, height=1080)
+            self.app = Viewer(self.newWindow)
+
+    def start_move(self, event):
+        self.x = event.x
+        self.y = event.y
+
+    def stop_move(self, event):
+        self.x = None
+        self.y = None
+
+    def do_move(self, event):
+        deltax = event.x - self.x
+        deltay = event.y - self.y
+        x = self.master.winfo_x() + deltax
+        y = self.master.winfo_y() + deltay
+        self.master.geometry(f"+{x}+{y}")
+
+    def on_closing(self):
+        self.sql.close()
+        self.master.destroy()
+
+def get_config(section, parameter):
+    conf = configparser.ConfigParser()
+
+    if os.path.isfile(r"./data/settings.ini"):
+        conf.read(r"./data/settings.ini")
+
+    else:
+        conf['Default'] = {'width': '1200',
+                           'height': '1080'}
+
+        with open('./data/settings.ini', 'w') as configfile:
+            conf.write(configfile)
+
+    return conf.get(section, parameter)
+
+def set_config(section, parameter):
+    conf = configparser.ConfigParser()
+    conf.read(r"./data/settings.ini")
+
+    conf[section] = parameter
+
+    with open('./data/settings.ini', 'w') as configfile:
+        conf.write(configfile)
 
 
 
 def main():
-    if not os.path.isdir('./data'):
-        os.system("mkdir data")
+    if not os.path.exists('./data'):
+        os.mkdir('data')
 
-    if not os.path.isdir('./data/hash'):
-        os.system(r"mkdir ./data/hash")
+    if not os.path.exists('./data/sql'):
+        os.mkdir('data/sql')
 
-    if not os.path.isdir('./data/cache'):
-        os.system(r"mkdir ./data/cache")
+    if not os.path.exists('./data/cache'):
+        os.mkdir('data/cache')
 
     root = tk.Tk()
-    root.minsize(width=1600, height=1200)
+    conf_width, conf_height = get_config('Default', 'width'), get_config('Default', 'height')
+
+    root.minsize(width=conf_width, height=conf_height)
+    root.maxsize(width=conf_width, height=conf_height)
+    root.overrideredirect(True)
     app = DatabaseView(root)
     root.mainloop()
+
 
 if __name__ == '__main__':
     main()
