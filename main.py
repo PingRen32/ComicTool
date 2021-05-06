@@ -200,6 +200,7 @@ class DatabaseView:
         frame_left.grid_propagate(0)
         frame_right.grid_propagate(0)
 
+        # Adding to right size of top bar
         # Add closing icon
         logo_img = Image.open(r'./source/close.png')
         logo = ImageTk.PhotoImage(logo_img.resize((int(h * 0.05), int(h * 0.05))))
@@ -207,7 +208,6 @@ class DatabaseView:
         self.close = tk.Button(self.master, image=logo, command=lambda: self.on_closing())
         self.close.image = logo
         self.close.pack(in_=frame_top, side="right", fill="y")
-
 
         # Add dragging icon
         move_logo_img = Image.open(r'./source/move.png')
@@ -232,6 +232,8 @@ class DatabaseView:
 
         for y in range(4):
             tk.Grid.rowconfigure(frame_right, y, weight=1)
+
+        print(self.button_list)
 
 
     def thumbnails(self):
